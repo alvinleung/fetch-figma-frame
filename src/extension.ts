@@ -156,6 +156,101 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      // step 0 - capture the user input right away
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage("No active editor!");
+        return;
+      }
+      const position = editor.selection.active; // Cursor position
+
+      const fetchFigmaAndGenerateCodeTask = async (
+        progress: vscode.Progress<{
+          message?: string;
+          increment?: number;
+        }>,
+        token: vscode.CancellationToken
+      ) => {
+        try {
+          // Fetch the Figma frame
+          progress.report({ message: "Fetching..." });
+
+          const frameData = await fetchFigmaFrame(fileKey, frameId);
+          // const frameDataString = JSON.stringify(frameData, null, 2);
+
+          if (token.isCancellationRequested) {
+            return;
+          }
+
+          progress.report({ message: "Generating..." });
+          const { code, processedDoc, rawDoc } =
+            await generateWithPreprocessing(frameData);
+
+          if (token.isCancellationRequested) {
+            return;
+          }
+          // Generate the React code (old implementation)
+          // progress.report({ message: "Extracing HTML(1/2)" });
+
+          // // turn figma structure into code
+          // const htmlExtract = await performGenerationStep({
+          //   promptId: "927888a4-3962-4475-a756-d9b1c1f10baf",
+          //   variables: {
+          //     frame: frameDataString,
+          //   },
+          // });
+
+          // if (token.isCancellationRequested) {
+          //   return;
+          // }
+
+          // progress.report({ message: "Generating Component(2/2)" });
+          // const code = await performGenerationStep({
+          //   promptId: "f55e62c3-5530-4226-bdb0-bf0dcd92578a",
+          //   variables: {
+          //     info: htmlExtract,
+          //   },
+          // });
+
+          // if (token.isCancellationRequested) {
+          //   return;
+          // }
+
+          // Fetch the Figma frame
+          // progress.report({ message: "Generating..." });
+          // const code = await performGenerationStep({
+          //   promptId: "260c67f5-c348-4483-9011-73453094e5b3",
+          //   variables: {
+          //     frame: frameDataString,
+          //   },
+          // });
+
+          // Step 2: Insert the code into the editor
+          editor.edit((editBuilder) => {
+            editBuilder.insert(position, code.completion);
+          });
+
+          // Stop loading
+          vscode.window
+            .showInformationMessage(
+              "Figma Frame fetched and inserted successfully!",
+              "Open Log"
+            )
+            .then((selection) => {
+              if (selection !== "Open Log") {
+                return;
+              }
+
+              // render the content in new window
+              displayAsDocument(rawDoc);
+              displayAsDocument(processedDoc);
+              displayAsDocument(code.prompt, "Plain Text");
+            });
+        } catch (error) {
+          vscode.window.showErrorMessage("Failed to fetch Figma Frame");
+        }
+      };
+
       // Show loading notification with progress
       await vscode.window.withProgress(
         {
@@ -163,93 +258,7 @@ export function activate(context: vscode.ExtensionContext) {
           title: "Fetch Figma Frame",
           cancellable: true,
         },
-        async (progress, token) => {
-          try {
-            // Fetch the Figma frame
-            progress.report({ message: "Fetching..." });
-
-            const frameData = await fetchFigmaFrame(fileKey, frameId);
-            const frameDataString = JSON.stringify(frameData, null, 2);
-
-            if (token.isCancellationRequested) {
-              return;
-            }
-
-            progress.report({ message: "Generating..." });
-            const { code, processedDoc, rawDoc } =
-              await generateWithPreprocessing(frameData);
-
-            if (token.isCancellationRequested) {
-              return;
-            }
-            // Generate the React code
-            // progress.report({ message: "Extracing HTML(1/2)" });
-
-            // // turn figma structure into code
-            // const htmlExtract = await performGenerationStep({
-            //   promptId: "927888a4-3962-4475-a756-d9b1c1f10baf",
-            //   variables: {
-            //     frame: frameDataString,
-            //   },
-            // });
-
-            // if (token.isCancellationRequested) {
-            //   return;
-            // }
-
-            // progress.report({ message: "Generating Component(2/2)" });
-            // const code = await performGenerationStep({
-            //   promptId: "f55e62c3-5530-4226-bdb0-bf0dcd92578a",
-            //   variables: {
-            //     info: htmlExtract,
-            //   },
-            // });
-
-            // if (token.isCancellationRequested) {
-            //   return;
-            // }
-
-            // Fetch the Figma frame
-            // progress.report({ message: "Generating..." });
-            // const code = await performGenerationStep({
-            //   promptId: "260c67f5-c348-4483-9011-73453094e5b3",
-            //   variables: {
-            //     frame: frameDataString,
-            //   },
-            // });
-
-            // Step 2: Insert the code into the editor
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-              vscode.window.showErrorMessage("No active editor!");
-              return;
-            }
-
-            const position = editor.selection.active; // Cursor position
-            editor.edit((editBuilder) => {
-              editBuilder.insert(position, code.completion);
-            });
-
-            // Stop loading
-            vscode.window
-              .showInformationMessage(
-                "Figma Frame fetched and inserted successfully!",
-                "Open Log"
-              )
-              .then((selection) => {
-                if (selection !== "Open Log") {
-                  return;
-                }
-
-                // render the content in new window
-                displayAsDocument(rawDoc);
-                displayAsDocument(processedDoc);
-                displayAsDocument(code.prompt, "Plain Text");
-              });
-          } catch (error) {
-            vscode.window.showErrorMessage("Failed to fetch Figma Frame");
-          }
-        }
+        fetchFigmaAndGenerateCodeTask
       );
     }
   );
