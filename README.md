@@ -26,9 +26,14 @@ Conversion is only limited frames, converting component is not supported at the 
 ## Roadmap
 
 - Planning to support the following in the future release
+
   - better parsing
   - converting svg for icons
   - support conversion component
+  - support inline format changes
+
+- fix ux bug
+  - currently when you press undo, it will trigger the process again
 
 ## Release Notes
 
