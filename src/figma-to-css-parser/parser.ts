@@ -14,7 +14,6 @@ export interface ElementNodeInfo {
   height?: string;
 
   // padding
-  padding?: string;
   paddingLeft?: string;
   paddingTop?: string;
   paddingBottom?: string;
@@ -76,15 +75,10 @@ export function convertFigmaFrameToElement(node): ElementNodeInfo | undefined {
     const paddingTop = node.paddingTop;
     const paddingBottom = node.paddingBottom;
 
-    // if (paddingLeft && paddingRight && paddingTop && paddingBottom) {
-    //   elm.padding = `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`;
-    // } else {
-
     elm.paddingLeft = paddingLeft ? paddingLeft + "px" : undefined;
     elm.paddingRight = paddingRight ? paddingRight + "px" : undefined;
     elm.paddingTop = paddingTop ? paddingTop + "px" : undefined;
     elm.paddingBottom = paddingBottom ? paddingBottom + "px" : undefined;
-    // }
   }
 
   // add padding
