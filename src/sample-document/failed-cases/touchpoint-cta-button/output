@@ -1,0 +1,7 @@
+const PrimaryCTA = () => (
+  <div className="flex items-center justify-center px-6 py-3 gap-1 rounded-full border border-wallet-green text-wallet-green">
+    <span className="font-sans text-[20px] font-normal leading-[19.4px] tracking-[-0.6px] text-[rgba(70,3,255,1)]">
+      Submit Questions
+    </span>
+  </div>
+);

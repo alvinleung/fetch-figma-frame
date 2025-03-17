@@ -1,0 +1,38 @@
+{
+  "display": "flex",
+  "type": "element",
+  "frameName": "Primary CTA",
+  "paddingLeft": "24px",
+  "paddingRight": "24px",
+  "paddingTop": "12px",
+  "paddingBottom": "12px",
+  "flexDirection": "row",
+  "gap": "3.6864206790924072px",
+  "width": "fit-content",
+  "height": "fit-content",
+  "justifyContent": "center",
+  "alignItems": "center",
+  "color": "rgba(187, 255, 0, 255)",
+  "backgroundColor": "rgba(187, 255, 0, 1)",
+  "borderRadius": "36.86420822143555px",
+  "border": "1.5185185670852661px solid rgba(187, 255, 0, 255)",
+  "children": [
+    {
+      "display": "block",
+      "type": "element",
+      "frameName": "Submit Questions",
+      "width": "fit-content",
+      "height": "fit-content",
+      "justifyContent": "flex-start",
+      "alignItems": "flex-start",
+      "fontFamily": "Nimbus Sans L",
+      "fontSize": "20px",
+      "fontWeight": 400,
+      "lineHeight": "19.400001525878906px",
+      "letterSpacing": "-0.6px",
+      "textAlign": "left",
+      "color": "rgba(70, 3, 255, 255)",
+      "children": "Submit Questions"
+    }
+  ]
+}

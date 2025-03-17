@@ -1,0 +1,144 @@
+{
+  "id": "605:244",
+  "name": "Primary CTA",
+  "type": "FRAME",
+  "scrollBehavior": "SCROLLS",
+  "rotation": 2.7755575615628914e-17,
+  "children": [
+    {
+      "id": "605:245",
+      "name": "Submit Questions",
+      "type": "TEXT",
+      "scrollBehavior": "SCROLLS",
+      "blendMode": "PASS_THROUGH",
+      "fills": [
+        {
+          "blendMode": "NORMAL",
+          "type": "SOLID",
+          "color": {
+            "r": 0.27450981736183167,
+            "g": 0.0117647061124444,
+            "b": 1,
+            "a": 1
+          }
+        }
+      ],
+      "strokes": [],
+      "strokeWeight": 0.14019183814525604,
+      "strokeAlign": "OUTSIDE",
+      "styles": { "fill": "173:436", "text": "308:1167" },
+      "absoluteBoundingBox": {
+        "x": 19197,
+        "y": 22769,
+        "width": 149,
+        "height": 15
+      },
+      "absoluteRenderBounds": {
+        "x": 19197.9609375,
+        "y": 22769.1796875,
+        "width": 146.953125,
+        "height": 16
+      },
+      "constraints": { "vertical": "TOP", "horizontal": "LEFT" },
+      "layoutAlign": "INHERIT",
+      "layoutGrow": 0,
+      "layoutSizingHorizontal": "HUG",
+      "layoutSizingVertical": "HUG",
+      "characters": "Submit Questions",
+      "characterStyleOverrides": [],
+      "styleOverrideTable": {},
+      "lineTypes": ["NONE"],
+      "lineIndentations": [0],
+      "style": {
+        "fontFamily": "Nimbus Sans L",
+        "fontPostScriptName": "NimbusSanL-Reg",
+        "fontStyle": "Regular",
+        "fontWeight": 400,
+        "textAutoResize": "WIDTH_AND_HEIGHT",
+        "fontSize": 20,
+        "textAlignHorizontal": "LEFT",
+        "textAlignVertical": "TOP",
+        "leadingTrim": "CAP_HEIGHT",
+        "letterSpacing": -0.6,
+        "lineHeightPx": 19.400001525878906,
+        "lineHeightPercent": 80.83332824707031,
+        "lineHeightPercentFontSize": 97,
+        "lineHeightUnit": "FONT_SIZE_%"
+      },
+      "layoutVersion": 4,
+      "effects": [],
+      "interactions": []
+    }
+  ],
+  "blendMode": "PASS_THROUGH",
+  "clipsContent": false,
+  "background": [
+    {
+      "blendMode": "NORMAL",
+      "type": "SOLID",
+      "color": { "r": 0.7326666712760925, "g": 1, "b": 0, "a": 1 }
+    }
+  ],
+  "fills": [
+    {
+      "blendMode": "NORMAL",
+      "type": "SOLID",
+      "color": { "r": 0.7326666712760925, "g": 1, "b": 0, "a": 1 }
+    }
+  ],
+  "strokes": [
+    {
+      "blendMode": "NORMAL",
+      "type": "SOLID",
+      "color": { "r": 0.7326666712760925, "g": 1, "b": 0, "a": 1 }
+    }
+  ],
+  "cornerRadius": 36.86420822143555,
+  "cornerSmoothing": 0,
+  "strokeWeight": 1.5185185670852661,
+  "strokeAlign": "OUTSIDE",
+  "backgroundColor": { "r": 0.7326666712760925, "g": 1, "b": 0, "a": 1 },
+  "styles": {
+    "fills": "173:434",
+    "strokes": "173:434",
+    "fill": "173:434",
+    "stroke": "173:434"
+  },
+  "layoutMode": "HORIZONTAL",
+  "itemSpacing": 3.6864206790924072,
+  "counterAxisAlignItems": "CENTER",
+  "primaryAxisAlignItems": "CENTER",
+  "paddingLeft": 24,
+  "paddingRight": 24,
+  "paddingTop": 12,
+  "paddingBottom": 12,
+  "layoutWrap": "NO_WRAP",
+  "absoluteBoundingBox": { "x": 19173, "y": 22757, "width": 197, "height": 39 },
+  "absoluteRenderBounds": {
+    "x": 19171.482421875,
+    "y": 22755.482421875,
+    "width": 200.03515625,
+    "height": 42.03515625
+  },
+  "constraints": { "vertical": "BOTTOM", "horizontal": "CENTER" },
+  "layoutSizingHorizontal": "HUG",
+  "layoutSizingVertical": "HUG",
+  "effects": [],
+  "interactions": [
+    {
+      "trigger": { "type": "ON_CLICK" },
+      "actions": [
+        {
+          "type": "NODE",
+          "destinationId": null,
+          "navigation": "NAVIGATE",
+          "transition": {
+            "type": "DISSOLVE",
+            "easing": { "type": "EASE_OUT" },
+            "duration": 0.20000000298023224
+          }
+        }
+      ]
+    }
+  ]
+}

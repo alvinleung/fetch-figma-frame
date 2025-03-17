@@ -1,5 +1,5 @@
 //@ts-nocheck
-interface ElementNodeInfo {
+export interface ElementNodeInfo {
   frameName?: string;
   children?: string | ElementNodeInfo[];
 
@@ -42,12 +42,32 @@ interface ElementNodeInfo {
   borderRight?: string;
   borderTop?: string;
   borderBottom?: string;
+
+  type: ElementNodeType;
+  instanceProps?: Object;
 }
 
-export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
-  const elm: ElementNodeInfo = { display: "block" };
+type ElementNodeType = "element" | "instance" | "vector";
+function getNodeType(node: any): ElementNodeType {
+  const elmTypeMap = {
+    FRAME: "element",
+    TEXT: "element",
+    INSTANCE: "instance",
+    VECTOR: "vector",
+  };
+  return (elmTypeMap[node.type as keyof typeof elmTypeMap] ||
+    "element") as ElementNodeType; // default to element
+}
+
+export function convertFigmaFrameToElement(node): ElementNodeInfo | undefined {
+  const elm: ElementNodeInfo = { display: "block", type: getNodeType(node) };
   if (node.name) {
     elm.frameName = node.name;
+  }
+
+  // do not generate instance with no content
+  if (node.type === "INSTANCE" && node.visible) {
+    return undefined;
   }
 
   if (node.type === "FRAME") {
@@ -90,7 +110,7 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
         elm.width = "100%";
         break;
       case "FIXED":
-        elm.width = node.absoluteBoundingBox.width + "px";
+        elm.width = node.absoluteBoundingBox?.width + "px";
         break;
     }
   }
@@ -104,7 +124,7 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
         elm.height = "100%";
         break;
       case "FIXED":
-        elm.height = node.absoluteBoundingBox.height + "px";
+        elm.height = node.absoluteBoundingBox?.height + "px";
         break;
     }
   }
@@ -126,15 +146,22 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
   };
 
   // Primary axis alignment (justify-content)
-  if (node.primaryAxisAlignItems in justifyContentMap) {
-    elm.justifyContent = justifyContentMap[node.primaryAxisAlignItems];
+  if (
+    node.type === "FRAME" &&
+    node.primaryAxisAlignItems in justifyContentMap
+  ) {
+    elm.justifyContent =
+      justifyContentMap[
+        node.primaryAxisAlignItems as keyof typeof justifyContentMap
+      ];
   } else {
     elm.justifyContent = alignItemsMap.MIN;
   }
 
   // Cross axis alignment (align-items)
-  if (node.counterAxisAlignItems in alignItemsMap) {
-    elm.alignItems = alignItemsMap[node.counterAxisAlignItems];
+  if (node.type === "FRAME" && node.counterAxisAlignItems in alignItemsMap) {
+    elm.alignItems =
+      alignItemsMap[node.counterAxisAlignItems as keyof typeof alignItemsMap];
   } else {
     // if not specify, it is min
     elm.alignItems = alignItemsMap.MIN;
@@ -151,13 +178,12 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
     elm.letterSpacing = node.style.letterSpacing
       ? `${node.style.letterSpacing}px`
       : "0";
-    elm.textAlign =
-      node.style.textAlignHorizontal.toLowerCase() as CSS["textAlign"];
+    elm.textAlign = node.style.textAlignHorizontal.toLowerCase();
   }
 
   if ("fills" in node && node.fills?.length) {
     // Color conversions
-    const primaryFill = node.fills.find((f) => f.visible !== false);
+    const primaryFill = node.fills.find((f: any) => f.visible !== false);
     if (primaryFill?.type === "SOLID") {
       elm.color = extractRGBAFromSolidFill(primaryFill);
     }
@@ -169,21 +195,21 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
   }
 
   // Background and effects
-  if ("backgrounds" in node && node.backgrounds?.length) {
-    const bg = node.backgrounds[0];
+  if ("background" in node && node.background?.length) {
+    const bg = node.background[0];
     if (bg.type === "SOLID") {
       const { r, g, b, a } = bg.color;
       elm.backgroundColor = `rgba(${Math.round(r * 255)}, ${Math.round(
         g * 255
-      )}, ${Math.round(b * 255)}, ${a})`;
+      )}, ${Math.round(b * 255)}, ${a === undefined ? 255 : a})`;
     }
   }
 
   // Shadow and blur effects
   if ("effects" in node && node.effects?.length) {
     elm.boxShadow = node.effects
-      .filter((e) => e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW")
-      .map((e) => {
+      .filter((e: any) => e.type === "DROP_SHADOW" || e.type === "INNER_SHADOW")
+      .map((e: any) => {
         const { offset, radius, color } = e;
         return `${offset?.x || 0}px ${offset?.y || 0}px ${radius || 0}px rgba(
           ${Math.round(color.r * 255)},
@@ -201,11 +227,11 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
   }
 
   if ("strokes" in node && node.strokes?.length) {
-    const primaryStroke = node.strokes.find((f) => f.visible !== false);
+    const primaryStroke = node.strokes.find((f: any) => f.visible !== false);
     if (primaryStroke?.type === "SOLID") {
       const strokeColor = extractRGBAFromSolidFill(primaryStroke);
 
-      if (node.individualStrokeWeights) {
+      if ("individualStrokeWeights" in node) {
         const { top, right, bottom, left } = node.individualStrokeWeights;
         elm.borderTop = top > 0 ? `${top}px solid ${strokeColor}` : undefined;
         elm.borderRight =
@@ -234,9 +260,9 @@ export function convertFigmaFrameToElement(node: any): ElementNodeInfo {
   // make it recursive if there is children nodes
   if (node.children && node.children.length > 0) {
     elm.children = node.children.map((child: any) => {
-      if (child.type === "FRAME" || child.type === "TEXT") {
-        return convertFigmaFrameToElement(child);
-      }
+      // if (child.type === "FRAME" || child.type === "TEXT") {
+      return convertFigmaFrameToElement(child);
+      // }
     });
     return elm;
   }
@@ -249,7 +275,7 @@ function extractRGBAFromSolidFill(fill: any) {
   const red = Math.round(r * 255);
   const green = Math.round(g * 255);
   const blue = Math.round(b * 255);
-  const alpha = fill.opacity;
+  const alpha = fill.opacity === undefined ? 255 : fill.opacity;
 
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
