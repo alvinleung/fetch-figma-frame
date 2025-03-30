@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 
-import { performGenerationStep } from "./code-gen";
+import { performGenerationStep, streamGenerationStep } from "./code-gen";
 import { fetchFigmaFrame } from "./fetch-figma";
 import { convertFigmaFrameToElement } from "./figma-to-css-parser/parser";
+import { sendLogToAdaline } from "./adaline";
 
 function extractFromCopiedLink(figmaUrl: string): {
   fileKey: string | null;
@@ -39,7 +40,7 @@ async function readWorkspaceFile(filePath: string): Promise<string | null> {
   }
 }
 
-async function generateWithPreprocessing(frameData: any) {
+async function* generateWithPreprocessing(frameData: any) {
   // log out the experimental figma to css processor result
   const documentNode = (Object.values(frameData.nodes)[0]! as any)
     .document as DocumentNode;
@@ -55,7 +56,7 @@ async function generateWithPreprocessing(frameData: any) {
     console.warn(e);
   }
 
-  const code = await performGenerationStep({
+  const stream = streamGenerationStep({
     promptId: "260c67f5-c348-4483-9011-73453094e5b3",
     variables: {
       frame: JSON.stringify(processedFigma),
@@ -64,11 +65,15 @@ async function generateWithPreprocessing(frameData: any) {
     },
   });
 
-  return {
-    code,
-    processedDoc: JSON.stringify(processedFigma),
-    rawDoc: JSON.stringify(documentNode),
-  };
+  for await (const update of stream) {
+    yield {
+      partial: update.partial,
+      full: update.full,
+      prompt: update.prompt,
+      processedDoc: JSON.stringify(processedFigma),
+      rawDoc: JSON.stringify(documentNode),
+    };
+  }
 }
 
 async function displayAsDocument(doc: string, language: string = "json") {
@@ -106,9 +111,21 @@ export function activate(context: vscode.ExtensionContext) {
         if (frameData instanceof Error) {
           vscode.window.showErrorMessage(frameData.message);
         }
-        const { code, rawDoc, processedDoc } = await generateWithPreprocessing(
-          frameData
-        );
+        // const { code, rawDoc, processedDoc } = await generateWithPreprocessing(
+        //   frameData
+        // );
+
+        const stream = generateWithPreprocessing(frameData);
+
+        let rawDoc = "";
+        let processedDoc = "";
+        let code = "";
+
+        for await (const chunk of stream) {
+          code = chunk.full;
+          rawDoc = chunk.rawDoc;
+          processedDoc = chunk.processedDoc;
+        }
 
         const documentRaw = await vscode.workspace.openTextDocument({
           content: rawDoc,
@@ -119,7 +136,7 @@ export function activate(context: vscode.ExtensionContext) {
           language: "json",
         });
         const codeDoc = await vscode.workspace.openTextDocument({
-          content: code.completion,
+          content: code,
           language: "TypeScript JSX",
         });
 
@@ -183,54 +200,48 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
           progress.report({ message: "Generating..." });
-          const { code, processedDoc, rawDoc } =
-            await generateWithPreprocessing(frameData);
 
-          if (token.isCancellationRequested) {
-            return;
+          const stream = generateWithPreprocessing(frameData);
+          let lastFullContent = "";
+          let prompt = "";
+          let rawDoc = "";
+          let processedDoc = "";
+
+          for await (const update of stream) {
+            if (token.isCancellationRequested) {
+              return;
+            }
+            // Update the editor with the latest full content
+            const newContent = update.full;
+            if (newContent !== lastFullContent) {
+              await editor.edit(
+                (editBuilder) => {
+                  // Disable undo stop for each incremental edit
+                  editor.document.languageId; // Triggers internal refresh to keep streaming live
+
+                  // Calculate the end position based on lastFullContent
+                  const startPosition = position;
+                  const lines = lastFullContent.split("\n");
+                  const endPosition = position.translate(
+                    lines.length - 1,
+                    lines[lines.length - 1].length
+                  );
+                  const range = new vscode.Range(startPosition, endPosition);
+
+                  editBuilder.replace(range, newContent);
+                },
+                { undoStopBefore: false, undoStopAfter: false }
+              ); // Prevents multiple undo points
+
+              lastFullContent = newContent;
+            }
+
+            // capture the stream info for logging
+            prompt = update.prompt;
+            rawDoc = update.rawDoc;
+            processedDoc = update.processedDoc;
           }
-          // Generate the React code (old implementation)
-          // progress.report({ message: "Extracing HTML(1/2)" });
 
-          // // turn figma structure into code
-          // const htmlExtract = await performGenerationStep({
-          //   promptId: "927888a4-3962-4475-a756-d9b1c1f10baf",
-          //   variables: {
-          //     frame: frameDataString,
-          //   },
-          // });
-
-          // if (token.isCancellationRequested) {
-          //   return;
-          // }
-
-          // progress.report({ message: "Generating Component(2/2)" });
-          // const code = await performGenerationStep({
-          //   promptId: "f55e62c3-5530-4226-bdb0-bf0dcd92578a",
-          //   variables: {
-          //     info: htmlExtract,
-          //   },
-          // });
-
-          // if (token.isCancellationRequested) {
-          //   return;
-          // }
-
-          // Fetch the Figma frame
-          // progress.report({ message: "Generating..." });
-          // const code = await performGenerationStep({
-          //   promptId: "260c67f5-c348-4483-9011-73453094e5b3",
-          //   variables: {
-          //     frame: frameDataString,
-          //   },
-          // });
-
-          // Step 2: Insert the code into the editor
-          editor.edit((editBuilder) => {
-            editBuilder.insert(position, code.completion);
-          });
-
-          // Stop loading
           vscode.window
             .showInformationMessage(
               "Figma Frame fetched and inserted successfully!",
@@ -244,7 +255,7 @@ export function activate(context: vscode.ExtensionContext) {
               // render the content in new window
               displayAsDocument(rawDoc);
               displayAsDocument(processedDoc);
-              displayAsDocument(code.prompt, "Plain Text");
+              displayAsDocument(prompt, "Plain Text");
             });
         } catch (error) {
           vscode.window.showErrorMessage("Failed to fetch Figma Frame");
@@ -282,33 +293,20 @@ export function activate(context: vscode.ExtensionContext) {
       const pastedText = change.text;
 
       // Ensure we are detecting the correct URL pattern
-      if (
+      const hasNodeId = pastedText.includes("node-id=");
+      const isFigmaUrl =
         pastedText.startsWith(`https://${figmaDomain}`) ||
-        pastedText.startsWith(`http://${figmaDomain}`)
-      ) {
-        const hasNodeId = pastedText.includes("node-id=");
-        if (hasNodeId) {
-          const position = change.range.start; // Starting position of the change
-          const length = pastedText.length; // Length of the inserted URL
+        pastedText.startsWith(`http://${figmaDomain}`);
 
-          // Create a range based on the start position and length of the inserted text
-          const range = new vscode.Range(
-            position,
-            position.translate(0, length)
-          );
-
-          // Remove the original pasted URL
-          await editor.edit((editBuilder) => {
-            editBuilder.replace(range, ""); // Replace the pasted URL with an empty string
-          });
-
-          // Now, execute the fetchFigma command without the URL in the document
-          await vscode.commands.executeCommand(
-            "fetch-figma-frame.fetchFrame",
-            pastedText
-          );
-        }
+      if (!isFigmaUrl || !hasNodeId) {
+        return;
       }
+
+      vscode.commands.executeCommand("undo");
+      await vscode.commands.executeCommand(
+        "fetch-figma-frame.fetchFrame",
+        pastedText
+      );
     }
   );
 

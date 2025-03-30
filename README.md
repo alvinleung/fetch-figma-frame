@@ -31,6 +31,7 @@ Conversion is only limited frames, converting component is not supported at the 
   - converting svg for icons
   - support conversion component
   - support inline format changes
+  - support streaming in the tokens
 
 - fix ux bug
   - currently when you press undo, it will trigger the process again
