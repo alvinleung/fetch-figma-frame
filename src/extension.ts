@@ -1,9 +1,8 @@
 import * as vscode from "vscode";
 
-import { performGenerationStep, streamGenerationStep } from "./code-gen";
+import { streamGenerationStep } from "./code-gen";
 import { fetchFigmaFrame } from "./fetch-figma";
 import { convertFigmaFrameToElement } from "./figma-to-css-parser/parser";
-import { sendLogToAdaline } from "./adaline";
 
 function extractFromCopiedLink(figmaUrl: string): {
   fileKey: string | null;
