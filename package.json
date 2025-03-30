@@ -24,6 +24,12 @@
         "command": "fetch-figma-frame.fetchFrameData",
         "title": "Fetch figma raw json data"
       }
+    ],
+    "keybindings": [
+      {
+        "key": "escape",
+        "command": "fetch-figma-frame.cancelFigmaFetch"
+      }
     ]
   },
   "scripts": {

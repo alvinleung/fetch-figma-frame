@@ -148,6 +148,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  let isCancellationRequestedByEscape = false;
+  vscode.commands.registerCommand("fetch-figma-frame.cancelFigmaFetch", () => {
+    isCancellationRequestedByEscape = true;
+  });
+
   /**
    * =============================================
    * MAIN BODY FOR THE PROCESSING LOGIC
@@ -194,7 +199,10 @@ export function activate(context: vscode.ExtensionContext) {
           const frameData = await fetchFigmaFrame(fileKey, frameId);
           // const frameDataString = JSON.stringify(frameData, null, 2);
 
-          if (token.isCancellationRequested) {
+          if (
+            token.isCancellationRequested ||
+            isCancellationRequestedByEscape
+          ) {
             return;
           }
 
@@ -207,7 +215,12 @@ export function activate(context: vscode.ExtensionContext) {
           let processedDoc = "";
 
           for await (const update of stream) {
-            if (token.isCancellationRequested) {
+            if (
+              token.isCancellationRequested ||
+              isCancellationRequestedByEscape
+            ) {
+              // undo the whole chunk
+              vscode.commands.executeCommand("undo");
               return;
             }
             // Update the editor with the latest full content
@@ -231,6 +244,11 @@ export function activate(context: vscode.ExtensionContext) {
                 },
                 { undoStopBefore: false, undoStopAfter: false }
               ); // Prevents multiple undo points
+
+              await editor.edit(() => {}, {
+                undoStopAfter: true,
+                undoStopBefore: true,
+              });
 
               lastFullContent = newContent;
             }
@@ -262,6 +280,7 @@ export function activate(context: vscode.ExtensionContext) {
       };
 
       // Show loading notification with progress
+      isCancellationRequestedByEscape = false;
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
