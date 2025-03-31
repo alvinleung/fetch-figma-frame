@@ -1,4 +1,3 @@
-//@ts-nocheck
 export interface ElementNodeInfo {
   frameName?: string;
   children?: string | ElementNodeInfo[];
@@ -58,14 +57,16 @@ function getNodeType(node: any): ElementNodeType {
     "element") as ElementNodeType; // default to element
 }
 
-export function convertFigmaFrameToElement(node): ElementNodeInfo | undefined {
+export function convertFigmaFrameToElement(
+  node: any
+): ElementNodeInfo | undefined {
   const elm: ElementNodeInfo = { display: "block", type: getNodeType(node) };
   if (node.name) {
     elm.frameName = node.name;
   }
 
   // do not generate instance with no content
-  if (node.type === "INSTANCE" && node.visible) {
+  if (node.type === "INSTANCE") {
     return undefined;
   }
 

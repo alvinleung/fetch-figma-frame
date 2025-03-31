@@ -28,7 +28,8 @@
     "keybindings": [
       {
         "key": "escape",
-        "command": "fetch-figma-frame.cancelFigmaFetch"
+        "command": "fetch-figma-frame.cancelFigmaFetch",
+        "when": "fetch-figma-frame.isGenerating"
       }
     ]
   },

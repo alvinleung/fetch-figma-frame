@@ -81,6 +81,6 @@ export async function* streamGenerationStep({
     provider: openai.name,
     completion: textStreamed,
     variables: variables,
-    latency: performance.now() - beginStreamTime,
+    // latency: performance.now() - beginStreamTime,
   });
 }

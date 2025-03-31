@@ -59,6 +59,7 @@ export async function sendLogToAdaline(
   };
 
   const body = JSON.stringify(logData);
+  console.log(logData);
 
   try {
     const response = await fetch(url, {

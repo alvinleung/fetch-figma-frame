@@ -84,6 +84,18 @@ async function displayAsDocument(doc: string, language: string = "json") {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  let isGenerating = false;
+
+  // Function to update context
+  function setIsGenerating(active: boolean) {
+    isGenerating = active;
+    vscode.commands.executeCommand(
+      "setContext",
+      "fetch-figma-frame.isGenerating",
+      active
+    );
+  }
+
   /**
    * =============================================
    * EXTRACT THE DATA FOR DEV
@@ -197,12 +209,12 @@ export function activate(context: vscode.ExtensionContext) {
           progress.report({ message: "Fetching..." });
 
           const frameData = await fetchFigmaFrame(fileKey, frameId);
-          // const frameDataString = JSON.stringify(frameData, null, 2);
 
           if (
             token.isCancellationRequested ||
             isCancellationRequestedByEscape
           ) {
+            setIsGenerating(false);
             return;
           }
 
@@ -221,6 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
             ) {
               // undo the whole chunk
               vscode.commands.executeCommand("undo");
+              setIsGenerating(false);
               return;
             }
             // Update the editor with the latest full content
@@ -275,12 +288,14 @@ export function activate(context: vscode.ExtensionContext) {
               displayAsDocument(prompt, "Plain Text");
             });
         } catch (error) {
+          setIsGenerating(false);
           vscode.window.showErrorMessage("Failed to fetch Figma Frame");
         }
       };
 
       // Show loading notification with progress
       isCancellationRequestedByEscape = false;
+      setIsGenerating(true);
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -289,6 +304,8 @@ export function activate(context: vscode.ExtensionContext) {
         },
         fetchFigmaAndGenerateCodeTask
       );
+      // after generating with everything
+      setIsGenerating(false);
     }
   );
 
