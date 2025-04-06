@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
 
-import { streamGenerationStep } from "./code-gen";
+import { streamGenerationStep } from "./adaline";
 import { fetchFigmaFrame } from "./fetch-figma";
 import { convertFigmaFrameToElement } from "./figma-to-css-parser/parser";
+import { tryCatch } from "./utils/try-catch";
 
 function extractFromCopiedLink(figmaUrl: string): {
   fileKey: string | null;
@@ -204,93 +205,90 @@ export function activate(context: vscode.ExtensionContext) {
         }>,
         token: vscode.CancellationToken
       ) => {
-        try {
-          // Fetch the Figma frame
-          progress.report({ message: "Fetching..." });
+        // Fetch the Figma frame
+        progress.report({ message: "Fetching..." });
 
-          const frameData = await fetchFigmaFrame(fileKey, frameId);
+        const frameData = await tryCatch(fetchFigmaFrame(fileKey, frameId));
+        if (frameData.error) {
+          vscode.window.showErrorMessage(frameData.error.message);
+          setIsGenerating(false);
+          return;
+        }
 
+        if (token.isCancellationRequested || isCancellationRequestedByEscape) {
+          setIsGenerating(false);
+          return;
+        }
+
+        progress.report({ message: "Generating..." });
+
+        const stream = generateWithPreprocessing(frameData.data);
+        let lastFullContent = "";
+        let prompt = "";
+        let rawDoc = "";
+        let processedDoc = "";
+
+        for await (const update of stream) {
           if (
             token.isCancellationRequested ||
             isCancellationRequestedByEscape
           ) {
+            // undo the whole chunk
+            vscode.commands.executeCommand("undo");
             setIsGenerating(false);
             return;
           }
+          // Update the editor with the latest full content
+          const newContent = update.full;
+          if (newContent !== lastFullContent) {
+            await editor.edit(
+              (editBuilder) => {
+                // Disable undo stop for each incremental edit
+                editor.document.languageId; // Triggers internal refresh to keep streaming live
 
-          progress.report({ message: "Generating..." });
+                // Calculate the end position based on lastFullContent
+                const startPosition = position;
+                const lines = lastFullContent.split("\n");
+                const endPosition = position.translate(
+                  lines.length - 1,
+                  lines[lines.length - 1].length
+                );
+                const range = new vscode.Range(startPosition, endPosition);
 
-          const stream = generateWithPreprocessing(frameData);
-          let lastFullContent = "";
-          let prompt = "";
-          let rawDoc = "";
-          let processedDoc = "";
+                editBuilder.replace(range, newContent);
+              },
+              { undoStopBefore: false, undoStopAfter: false }
+            ); // Prevents multiple undo points
 
-          for await (const update of stream) {
-            if (
-              token.isCancellationRequested ||
-              isCancellationRequestedByEscape
-            ) {
-              // undo the whole chunk
-              vscode.commands.executeCommand("undo");
-              setIsGenerating(false);
-              return;
-            }
-            // Update the editor with the latest full content
-            const newContent = update.full;
-            if (newContent !== lastFullContent) {
-              await editor.edit(
-                (editBuilder) => {
-                  // Disable undo stop for each incremental edit
-                  editor.document.languageId; // Triggers internal refresh to keep streaming live
+            await editor.edit(() => {}, {
+              undoStopAfter: true,
+              undoStopBefore: true,
+            });
 
-                  // Calculate the end position based on lastFullContent
-                  const startPosition = position;
-                  const lines = lastFullContent.split("\n");
-                  const endPosition = position.translate(
-                    lines.length - 1,
-                    lines[lines.length - 1].length
-                  );
-                  const range = new vscode.Range(startPosition, endPosition);
-
-                  editBuilder.replace(range, newContent);
-                },
-                { undoStopBefore: false, undoStopAfter: false }
-              ); // Prevents multiple undo points
-
-              await editor.edit(() => {}, {
-                undoStopAfter: true,
-                undoStopBefore: true,
-              });
-
-              lastFullContent = newContent;
-            }
-
-            // capture the stream info for logging
-            prompt = update.prompt;
-            rawDoc = update.rawDoc;
-            processedDoc = update.processedDoc;
+            lastFullContent = newContent;
           }
 
-          vscode.window
-            .showInformationMessage(
-              "Figma Frame fetched and inserted successfully!",
-              "Open Log"
-            )
-            .then((selection) => {
-              if (selection !== "Open Log") {
-                return;
-              }
-
-              // render the content in new window
-              displayAsDocument(rawDoc);
-              displayAsDocument(processedDoc);
-              displayAsDocument(prompt, "Plain Text");
-            });
-        } catch (error) {
-          setIsGenerating(false);
-          vscode.window.showErrorMessage("Failed to fetch Figma Frame");
+          // capture the stream info for logging
+          prompt = update.prompt;
+          rawDoc = update.rawDoc;
+          processedDoc = update.processedDoc;
         }
+
+        vscode.window
+          .showInformationMessage(
+            "Figma Frame fetched and inserted successfully!",
+            "Open Log"
+          )
+          .then((selection) => {
+            if (selection !== "Open Log") {
+              return;
+            }
+
+            // render the content in new window
+            displayAsDocument(rawDoc);
+            displayAsDocument(processedDoc);
+            displayAsDocument(prompt, "Plain Text");
+          });
       };
 
       // Show loading notification with progress
